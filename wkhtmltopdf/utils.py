@@ -145,6 +145,7 @@ def wkhtmltopdf(pages, output=None, **kwargs):
 
     return check_output(ck_args, **ck_kwargs)
 
+
 def convert_to_pdf(filename, header_filename=None, footer_filename=None, cmd_options=None, cover_filename=None):
     # Clobber header_html and footer_html only if filenames are
     # provided. These keys may be in self.cmd_options as hardcoded
@@ -164,6 +165,7 @@ def convert_to_pdf(filename, header_filename=None, footer_filename=None, cmd_opt
         cmd_options['footer_html'] = footer_filename
     return wkhtmltopdf(pages=pages, **cmd_options)
 
+
 class RenderedFile(object):
     """
     Create a temporary file resource of the rendered template with context.
@@ -172,7 +174,7 @@ class RenderedFile(object):
     temporary_file = None
     filename = ''
 
-    def __init__(self, template, context, request=None):
+    def __init__(self, template, context, request=None, to_absolute_paths=True):
         debug = getattr(settings, 'WKHTMLTOPDF_DEBUG', settings.DEBUG)
 
         self.temporary_file = render_to_temporary_file(
@@ -180,7 +182,8 @@ class RenderedFile(object):
             context=context,
             request=request,
             prefix='wkhtmltopdf', suffix='.html',
-            delete=(not debug)
+            delete=(not debug),
+            to_absolute_paths=to_absolute_paths
         )
         self.filename = self.temporary_file.name
 
@@ -189,8 +192,9 @@ class RenderedFile(object):
         if self.temporary_file is not None:
             self.temporary_file.close()
 
+
 def render_pdf_from_template(input_template, header_template, footer_template, context, request=None, cmd_options=None,
-    cover_template=None):
+                             cover_template=None, to_absolute_paths=True):
     # For basic usage. Performs all the actions necessary to create a single
     # page PDF from a single template and context.
     cmd_options = cmd_options if cmd_options else {}
@@ -234,6 +238,7 @@ def render_pdf_from_template(input_template, header_template, footer_template, c
                           footer_filename=footer_filename,
                           cmd_options=cmd_options,
                           cover_filename=cover.filename if cover else None)
+
 
 def content_disposition_filename(filename):
     """
@@ -307,9 +312,10 @@ def make_absolute_paths(content):
 
     return content
 
+
 def render_to_temporary_file(template, context, request=None, mode='w+b',
                              bufsize=-1, suffix='.html', prefix='tmp',
-                             dir=None, delete=True):
+                             dir=None, delete=True, to_absolute_paths=True):
     try:
         render = template.render
     except AttributeError:
@@ -328,7 +334,8 @@ def render_to_temporary_file(template, context, request=None, mode='w+b',
         else:
             content = render(context, request)
     content = smart_text(content)
-    content = make_absolute_paths(content)
+    if to_absolute_paths:
+        content = make_absolute_paths(content)
 
     try:
         # Python3 has 'buffering' arg instead of 'bufsize'
